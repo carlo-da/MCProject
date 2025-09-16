@@ -1,152 +1,131 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:dart_rss/dart_rss.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:convert';
+import 'widgets/custom_header.dart';
 
 class NewsFeedScreen extends StatefulWidget {
+  const NewsFeedScreen({super.key});
+
   @override
   _NewsFeedScreenState createState() => _NewsFeedScreenState();
 }
 
-class _NewsFeedScreenState extends State<NewsFeedScreen> with SingleTickerProviderStateMixin {
-  List<RssItem> articles = [];
-  bool isLoading = true;
+class _NewsFeedScreenState extends State<NewsFeedScreen> {
+  List<RssItem> _items = [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    fetchRSS();
+    _loadCachedArticles(); // load cached first
+    _fetchRSS(); // then fetch latest
   }
 
-  Future<void> fetchRSS() async {
-    final feeds = [
-      "https://feeds.feedburner.com/TheHackersNews",
-      "https://krebsonsecurity.com/feed/",
-      "https://www.darkreading.com/rss.xml",
-    ];
-
-    try {
-      List<RssItem> allItems = [];
-      for (final url in feeds) {
-        final response = await http.get(Uri.parse(url));
-        if (response.statusCode == 200) {
-          final rssFeed = RssFeed.parse(response.body);
-          allItems.addAll(rssFeed.items);
-        }
-      }
-
+  Future<void> _loadCachedArticles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('cachedArticles');
+    if (cached != null) {
+      final List decoded = jsonDecode(cached);
       setState(() {
-        articles = allItems.take(20).toList();
-        isLoading = false;
+        _items = decoded.map((e) => RssItem(
+              title: e['title'],
+              link: e['link'],
+              pubDate: e['pubDate'],
+            )).toList();
+        _loading = false;
       });
+    }
+  }
+
+  Future<void> _fetchRSS() async {
+    const feedUrl = "https://feeds.feedburner.com/TheHackersNews";
+    try {
+      final response = await http.get(Uri.parse(feedUrl));
+      if (response.statusCode == 200) {
+        final rssFeed = RssFeed.parse(response.body);
+        setState(() {
+          _items = rssFeed.items;
+          _loading = false;
+        });
+
+        // cache the articles
+        final prefs = await SharedPreferences.getInstance();
+        prefs.setString(
+            'cachedArticles',
+            jsonEncode(rssFeed.items.map((item) => {
+                  'title': item.title,
+                  'link': item.link,
+                  'pubDate': item.pubDate,
+                }).toList()));
+      } else {
+        setState(() {
+          _loading = false;
+        });
+      }
     } catch (e) {
-      setState(() => isLoading = false);
-      print("Error fetching RSS: $e");
+      setState(() {
+        _loading = false;
+      });
     }
   }
 
-  String getSourceName(RssItem item) {
-    if (item.source?.url == "https://feeds.feedburner.com/TheHackersNews") {
-      return "The Hacker News";
-    } else if (item.source?.url == "https://krebsonsecurity.com/feed/") {
-      return "Krebs on Security";
-    } else if (item.source?.url == "https://www.darkreading.com/rss.xml") {
-      return "Dark Reading";
-    }
-    return "Unknown";
-  }
-
-  Future<void> openUrl(String url) async {
+  Future<void> _openLink(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open the article')),
-      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Cybersecurity News"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-      ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: fetchRSS,
-              child: ListView.builder(
-                padding: EdgeInsets.all(12),
-                itemCount: articles.length,
-                itemBuilder: (context, index) {
-                  final article = articles[index];
-                  // Animation: delay each card slightly based on index
-                  return TweenAnimationBuilder(
-                    tween: Tween<double>(begin: 0, end: 1),
-                    duration: Duration(milliseconds: 300 + index * 100),
-                    builder: (context, double value, child) {
-                      return Opacity(
-                        opacity: value,
-                        child: Transform.translate(
-                          offset: Offset(0, (1 - value) * 20),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: Card(
-                      margin: EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
-                      child: ListTile(
-                        contentPadding: EdgeInsets.all(12),
-                        leading: article.enclosure?.url != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  article.enclosure!.url!,
-                                  width: 60,
-                                  height: 60,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : Icon(Icons.article, color: Colors.lightBlue, size: 50),
-                        title: Text(
-                          article.title ?? "No title",
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(height: 4),
-                            Text(
-                              article.description ?? "No description",
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+      backgroundColor: Colors.white,
+      body: Column(
+        children: [
+          const CustomHeader(title: "Cybersecurity News"),
+          Expanded(
+            child: _loading && _items.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: _fetchRSS,
+                    child: ListView.builder(
+                      itemCount: _items.length,
+                      itemBuilder: (context, index) {
+                        final item = _items[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 3,
+                          child: ListTile(
+                            title: Text(
+                              item.title ?? "No title",
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87),
                             ),
-                            SizedBox(height: 6),
-                            Text(
-                              '${article.pubDate ?? ''} • ${getSourceName(article)}',
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.grey[600]),
+                            subtitle: Text(
+                              item.pubDate ?? "",
+                              style: const TextStyle(color: Colors.black54),
                             ),
-                          ],
-                        ),
-                        onTap: () {
-                          if (article.link != null) openUrl(article.link!);
-                        },
-                      ),
+                            onTap: () {
+                              if (item.link != null) {
+                                _openLink(item.link!);
+                              }
+                            },
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
-            ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

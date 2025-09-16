@@ -1,79 +1,93 @@
 import 'package:flutter/material.dart';
 import 'ui/screens/password_generator.dart';
-import 'ui/screens/breach_check.dart';
 import 'ui/screens/password_checker.dart';
+import 'ui/screens/breach_check.dart';
 import 'ui/screens/news_feed.dart';
 
-
 void main() {
-  runApp(CyberGuardApp());
+  runApp(const CyberGuardApp());
 }
 
 class CyberGuardApp extends StatelessWidget {
+  const CyberGuardApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Cyber Guard',
-      theme: ThemeData(
-        primarySwatch: Colors.lightBlue,
-        scaffoldBackgroundColor: Colors.white,
-      ),
-      home: HomeScreen(),
       debugShowCheckedModeBanner: false,
+      title: 'CyberGuard',
+      theme: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Colors.white,
+        primaryColor: Colors.lightBlue,
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Colors.white,
+          selectedItemColor: Colors.lightBlue,
+          unselectedItemColor: Colors.black54,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          iconTheme: IconThemeData(color: Colors.black87),
+        ),
+      ),
+      home: const MainScreen(),
     );
   }
 }
 
-class HomeScreen extends StatefulWidget {
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
+class _MainScreenState extends State<MainScreen> {
+  int _currentIndex = 0;
 
-  // Make sure these class names exactly match the ones in your screen files
-  final List<Widget> _screens = [
+  final List<Widget> _screens = const [
     PasswordGeneratorScreen(),
-    BreachCheckScreen(),
     PasswordCheckerScreen(),
+    BreachCheckScreen(),
     NewsFeedScreen(),
   ];
-
-  void _onItemTapped(int index) {
-    setState(() => _selectedIndex = index);
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_selectedIndex],
+      backgroundColor: Colors.white,
+      body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: Colors.lightBlue,
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.vpn_key),
-            label: 'Generator',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shield),
-            label: 'Breach Check',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.speed),
-            label: 'Checker',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.article),
-            label: 'News',
-          ),
-        ],
-      ),
+  currentIndex: _currentIndex,
+  onTap: (index) => setState(() {
+    _currentIndex = index;
+  }),
+  showSelectedLabels: false, // remove label
+  showUnselectedLabels: false, // remove label
+  selectedItemColor: Colors.lightBlue,
+  unselectedItemColor: Colors.black54,
+  backgroundColor: Colors.white,
+  type: BottomNavigationBarType.fixed,
+  items: const [
+    BottomNavigationBarItem(
+      icon: Icon(Icons.vpn_key),
+      label: 'Generator',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.shield),
+      label: 'Password check',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.speed),
+      label: 'Breach Check',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.article),
+      label: 'News',
+    ),
+  ],
+),
     );
   }
 }

@@ -1,131 +1,161 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // ✅ for clipboard
+import 'package:flutter/services.dart';
 import 'widgets/custom_header.dart';
 
-class PasswordGeneratorScreen extends StatefulWidget {
-  const PasswordGeneratorScreen({super.key});
+class PasswordGenerator extends StatefulWidget {
+  const PasswordGenerator({super.key});
 
   @override
-  _PasswordGeneratorScreenState createState() =>
-      _PasswordGeneratorScreenState();
+  State<PasswordGenerator> createState() => _PasswordGeneratorState();
 }
 
-class _PasswordGeneratorScreenState extends State<PasswordGeneratorScreen> {
+class _PasswordGeneratorState extends State<PasswordGenerator>
+    with SingleTickerProviderStateMixin {
   String _generatedPassword = "";
-  double _length = 16; // default length
+  double _passwordLength = 12;
 
-  String _generatePassword(int length) {
-    const chars =
-        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#%^&*()';
-    Random rnd = Random();
-    return List.generate(length, (index) => chars[rnd.nextInt(chars.length)])
-        .join();
+  late AnimationController _animController;
+  late Animation<double> _fadeAnim;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _fadeAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeIn,
+    );
+    _scaleAnim = Tween<double>(begin: 0.9, end: 1.0).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
+    );
   }
 
-  void _onGenerate() {
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _generatePassword() {
+    const chars =
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#\$%^&*()_+";
+    final rand = Random.secure();
+    final pass = List.generate(
+        _passwordLength.toInt(), (index) => chars[rand.nextInt(chars.length)]);
+
     setState(() {
-      _generatedPassword = _generatePassword(_length.toInt());
+      _generatedPassword = pass.join();
     });
+
+    _animController.forward(from: 0);
   }
 
   void _copyToClipboard() {
-    if (_generatedPassword.isEmpty) return;
-    Clipboard.setData(ClipboardData(text: _generatedPassword));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Password copied to clipboard!"),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    if (_generatedPassword.isNotEmpty) {
+      Clipboard.setData(ClipboardData(text: _generatedPassword));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Copied to clipboard!"),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.blueAccent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Column(
         children: [
           const CustomHeader(title: "Password Generator"),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text(
+              "Generate strong, random passwords using letters, numbers, and special characters.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+                color: Colors.black54,
+              ),
+            ),
+          ),
           Expanded(
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Length slider
-                    Column(
-                      children: [
-                        Text(
-                          "Password length: ${_length.toInt()}",
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        Slider(
-                          value: _length,
-                          min: 6,
-                          max: 32,
-                          divisions: 26,
-                          label: _length.toInt().toString(),
-                          activeColor: Colors.lightBlue,
-                          onChanged: (value) {
-                            setState(() {
-                              _length = value;
-                            });
-                          },
-                        ),
-                      ],
+                    Text(
+                      "Password length: ${_passwordLength.toInt()}",
+                      style: const TextStyle(fontSize: 16),
                     ),
-                    const SizedBox(height: 20),
-
-                    // Generate button
+                    Slider(
+                      value: _passwordLength,
+                      min: 6,
+                      max: 32,
+                      divisions: 26,
+                      label: _passwordLength.toInt().toString(),
+                      activeColor: Colors.blue,
+                      onChanged: (val) {
+                        setState(() {
+                          _passwordLength = val;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
                     ElevatedButton(
+                      onPressed: _generatePassword,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.lightBlue,
+                        backgroundColor: Colors.blueAccent,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 14),
                       ),
-                      onPressed: _onGenerate,
                       child: const Text("Generate Password"),
                     ),
-
-                    const SizedBox(height: 20),
-
-                    // Generated password
-                    SelectableText(
-                      _generatedPassword.isEmpty
-                          ? "Use the slider and button to generate a password"
-                          : _generatedPassword,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Copy to clipboard button
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[200],
-                        foregroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 24),
+                    if (_generatedPassword.isNotEmpty)
+                      FadeTransition(
+                        opacity: _fadeAnim,
+                        child: ScaleTransition(
+                          scale: _scaleAnim,
+                          child: Column(
+                            children: [
+                              SelectableText(
+                                _generatedPassword,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              IconButton(
+                                icon: const Icon(Icons.copy,
+                                    size: 28, color: Colors.blueAccent),
+                                onPressed: _copyToClipboard,
+                                tooltip: "Copy password",
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      onPressed: _copyToClipboard,
-                      icon: const Icon(Icons.copy),
-                      label: const Text("Copy to Clipboard"),
-                    ),
                   ],
                 ),
               ),

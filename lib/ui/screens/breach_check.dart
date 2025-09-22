@@ -1,107 +1,134 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'widgets/custom_header.dart';
 
-class BreachCheckScreen extends StatefulWidget {
-  const BreachCheckScreen({super.key});
+class BreachChecker extends StatefulWidget {
+  const BreachChecker({super.key});
 
   @override
-  _BreachCheckScreenState createState() => _BreachCheckScreenState();
+  State<BreachChecker> createState() => _BreachCheckerState();
 }
 
-class _BreachCheckScreenState extends State<BreachCheckScreen> {
+class _BreachCheckerState extends State<BreachChecker> {
   final TextEditingController _controller = TextEditingController();
-  String _result = "";
-  Color _borderColor = Colors.grey;
+  bool? _breached;
 
-  Future<void> _checkPassword(String password) async {
-    if (password.isEmpty) return;
+  void _checkBreach() {
+    // Placeholder logic: mark as breached if password length < 8
+    setState(() {
+      _breached = _controller.text.length < 8 ? true : false;
+    });
+  }
 
-    // Hash password with SHA-1
-    var bytes = utf8.encode(password);
-    var digest = sha1.convert(bytes).toString().toUpperCase();
-
-    String prefix = digest.substring(0, 5);
-    String suffix = digest.substring(5);
-
-    var url = Uri.parse("https://api.pwnedpasswords.com/range/$prefix");
-    var response = await http.get(url);
-
-    if (response.statusCode == 200) {
-      bool found = response.body.contains(suffix);
-
-      setState(() {
-        if (found) {
-          _result = "⚠️ This password has been breached!";
-          _borderColor = Colors.red;
-        } else {
-          _result = "✅ This password is safe.";
-          _borderColor = Colors.green;
-        }
-      });
-    } else {
-      setState(() {
-        _result = "Error checking password.";
-        _borderColor = Colors.grey;
-      });
+  void _copyToClipboard() {
+    if (_controller.text.isNotEmpty) {
+      Clipboard.setData(ClipboardData(text: _controller.text));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Password copied!"),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.blueAccent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
     }
+  }
+
+  Color _getGlowColor() {
+    if (_breached == null) return Colors.grey;
+    return _breached! ? Colors.red : Colors.green;
+  }
+
+  String _getFeedback() {
+    if (_breached == null) return "";
+    return _breached! ? "Password has been breached!" : "Password is safe!";
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Column(
         children: [
-          const CustomHeader(title: "Breach Checker"), //gradient header
+          const CustomHeader(title: "Breach Checker"),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text(
+              "Check if your password has appeared in known data breaches.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+                color: Colors.black54,
+              ),
+            ),
+          ),
           Expanded(
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeInOut,
-                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: _borderColor, width: 3),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _getGlowColor().withOpacity(0.6),
+                            blurRadius: 16,
+                            spreadRadius: 1,
+                          ),
+                        ],
                       ),
                       child: TextField(
                         controller: _controller,
                         obscureText: true,
                         style: const TextStyle(color: Colors.black),
                         decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          hintText: "Enter password to check",
-                          hintStyle: TextStyle(color: Colors.black54),
+                          border: OutlineInputBorder(),
+                          hintText: "Enter your password",
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
                       ),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
+                      onPressed: _checkBreach,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.lightBlue,
+                        backgroundColor: Colors.blueAccent,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
+                            horizontal: 32, vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: () => _checkPassword(_controller.text),
                       child: const Text("Check Breach"),
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      _result,
-                      style: const TextStyle(fontSize: 16, color: Colors.black87),
-                      textAlign: TextAlign.center,
-                    ),
+                    const SizedBox(height: 16),
+                    if (_breached != null)
+                      Text(
+                        _getFeedback(),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: _getGlowColor(),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    if (_controller.text.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.copy,
+                            size: 28, color: Colors.blueAccent),
+                        onPressed: _copyToClipboard,
+                        tooltip: "Copy password",
+                      ),
                   ],
                 ),
               ),

@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+// Placeholder imports for your screens (we will create/update these next)
 import 'ui/screens/password_generator.dart';
-import 'ui/screens/password_checker.dart';
-import 'ui/screens/breach_check.dart';
-import 'ui/screens/news_feed.dart';
+import 'ui/screens/breach_check.dart'; 
+// import 'ui/screens/password_manager.dart'; // We will build this
+// import 'ui/screens/safety_tips.dart';      // We will build this
+import 'ui/screens/settings_page.dart';       // We will build this
+import 'ui/screens/password_manager.dart';
+import 'ui/screens/safety_tips.dart';
 
 void main() {
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark, 
+  ));
   runApp(const CyberGuardApp());
 }
 
@@ -17,18 +27,35 @@ class CyberGuardApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'CyberGuard',
       theme: ThemeData(
+        useMaterial3: true,
         brightness: Brightness.light,
         scaffoldBackgroundColor: Colors.white,
-        primaryColor: Colors.lightBlue,
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Colors.white,
-          selectedItemColor: Colors.lightBlue,
-          unselectedItemColor: Colors.black54,
+        primaryColor: Colors.redAccent,
+        
+        // Define the Red/White Color Scheme
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.redAccent,
+          primary: Colors.redAccent,
+          surface: Colors.white,
+          onSurface: Colors.black87,
         ),
+
+        // The Red Header
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
+          backgroundColor: Colors.redAccent,
+          foregroundColor: Colors.white, // Text/Icon color
           elevation: 0,
-          iconTheme: IconThemeData(color: Colors.black87),
+          centerTitle: true,
+          titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+        ),
+
+        // The Bottom Navigation
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: Colors.grey[50],
+          indicatorColor: Colors.redAccent.withOpacity(0.2),
+          labelTextStyle: MaterialStateProperty.all(
+            const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
         ),
       ),
       home: const MainScreen(),
@@ -46,48 +73,60 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    PasswordGenerator(),
-    PasswordChecker(),
-    BreachChecker(),
-    NewsFeedScreen(),
+  // Temporary list until we refactor the other files
+  final List<Widget> _screens = [
+    const PasswordManager(), // Placeholder
+    const PasswordGenerator(),
+    const BreachChecker(),
+    const SafetyTipsScreen(), // Placeholder
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: _screens[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-  currentIndex: _currentIndex,
-  onTap: (index) => setState(() {
-    _currentIndex = index;
-  }),
-  showSelectedLabels: false, // remove label
-  showUnselectedLabels: false, // remove label
-  selectedItemColor: Colors.lightBlue,
-  unselectedItemColor: Colors.black54,
-  backgroundColor: Colors.white,
-  type: BottomNavigationBarType.fixed,
-  items: const [
-    BottomNavigationBarItem(
-      icon: Icon(Icons.vpn_key),
-      label: 'Generator',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.shield),
-      label: 'Password check',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.speed),
-      label: 'Breach Check',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.article),
-      label: 'News',
-    ),
-  ],
-),
+      appBar: AppBar(
+        title: const Text("CYBER GUARD"),
+        actions: [
+          // THE SETTINGS GEAR
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              );
+            },
+          ),
+        ],
+      ),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) => setState(() => _currentIndex = index),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.lock_outline),
+            selectedIcon: Icon(Icons.lock),
+            label: 'Vault', // The Manager
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.password),
+            label: 'Generate',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.wifi_password),
+            label: 'Breach',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.lightbulb_outline),
+            selectedIcon: Icon(Icons.lightbulb),
+            label: 'Tips', // The new Tips section
+          ),
+        ],
+      ),
     );
   }
 }
